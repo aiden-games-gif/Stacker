@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>STACKED</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    width: 100%; height: 100%;
+    background: #0a1628;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  }
+
+  #gameContainer {
+    position: relative;
+    width: 400px;
+    height: 600px;
+    flex-shrink: 0;
+  }
+
+  canvas {
+    display: block;
+    width: 400px;
+    height: 600px;
+    border-radius: 16px;
+    cursor: pointer;
+  }
+
+  /* ── SCREENS ── */
+  .screen {
+    position: absolute;
+    inset: 0;
+    border-radius: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    pointer-events: all;
+  }
+
+  /* ── START SCREEN ── */
+  #startScreen {
+    background: linear-gradient(160deg, #0d4f5c 0%, #093340 40%, #061e2e 100%);
+  }
+
+  .game-title {
+    font-size: 72px;
+    font-weight: 900;
+    letter-spacing: 12px;
+    color: #fff;
+    text-shadow: 0 0 40px rgba(99,255,200,0.4);
+    margin-bottom: 8px;
+  }
+
+  .game-subtitle {
+    font-size: 13px;
+    font-weight: 400;
+    letter-spacing: 4px;
+    color: rgba(255,255,255,0.5);
+    text-transform: uppercase;
+    margin-bottom: 60px;
+  }
+
+  .tower-preview {
+    margin-bottom: 48px;
+  }
+
+  .tap-btn {
+    background: rgba(99,255,200,0.15);
+    border: 2px solid rgba(99,255,200,0.6);
+    border-radius: 50px;
+    padding: 16px 52px;
+    color: #63ffc8;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-transform: uppercase;
+  }
+  .tap-btn:hover, .tap-btn:active {
+    background: rgba(99,255,200,0.3);
+    box-shadow: 0 0 30px rgba(99,255,200,0.3);
+    transform: scale(1.04);
+  }
+
+  .hint-text {
+    margin-top: 20px;
+    font-size: 12px;
+    color: rgba(255,255,255,0.3);
+    letter-spacing: 2px;
+  }
+
+  /* ── GAME OVER SCREEN ── */
+  #gameoverScreen {
+    background: rgba(6, 14, 24, 0.88);
+    backdrop-filter: blur(12px);
+    display: none;
+  }
+  #gameoverScreen.visible { display: flex; }
+
+  .go-label {
+    font-size: 13px;
+    letter-spacing: 5px;
+    color: rgba(255,255,255,0.45);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+
+  .go-score {
+    font-size: 96px;
+    font-weight: 900;
+    color: #fff;
+    line-height: 1;
+    margin-bottom: 8px;
+  }
+
+  .go-best {
+    font-size: 13px;
+    letter-spacing: 3px;
+    color: rgba(99,255,200,0.7);
+    margin-bottom: 56px;
+  }
+
+  /* ── LIVE SCORE ── */
+  #liveScore {
+    position: absolute;
+    top: 28px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 52px;
+    font-weight: 900;
+    color: rgba(255,255,255,0.92);
+    letter-spacing: -2px;
+    pointer-events: none;
+    transition: transform 0.08s ease;
+    text-shadow: 0 2px 20px rgba(0,0,0,0.4);
+    display: none;
+  }
+  #liveScore.pop {
+    transform: translateX(-50%) scale(1.35);
+  }
+
+  #bestScore {
+    position: absolute;
+    top: 88px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 12px;
+    letter-spacing: 3px;
+    color: rgba(255,255,255,0.35);
+    pointer-events: none;
+    display: none;
+  }
+
+  /* ── PERFECT TOAST ── */
+  #perfectToast {
+    position: absolute;
+    top: 38%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: 5px;
+    color: #63ffc8;
+    text-shadow: 0 0 30px rgba(99,255,200,0.8);
+    pointer-events: none;
+    opacity: 0;
+  }
+  @keyframes perfectAnim {
+    0%   { transform: translate(-50%,-50%) scale(0.3); opacity: 0; }
+    30%  { transform: translate(-50%,-50%) scale(1.2); opacity: 1; }
+    60%  { transform: translate(-50%,-50%) scale(1.0); opacity: 1; }
+    100% { transform: translate(-50%,-80%) scale(0.9); opacity: 0; }
+  }
+  #perfectToast.show {
+    animation: perfectAnim 0.85s cubic-bezier(0.22,0.61,0.36,1) forwards;
+  }
+
+  /* ── EXPAND TOAST ── */
+  #expandToast {
+    position: absolute;
+    top: 46%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    font-size: 17px;
+    font-weight: 800;
+    letter-spacing: 5px;
+    color: #fcd34d;
+    text-shadow: 0 0 24px rgba(252,211,77,0.9);
+    pointer-events: none;
+    opacity: 0;
+  }
+  @keyframes expandAnim {
+    0%   { transform: translate(-50%,-50%) scale(0.3); opacity: 0; }
+    30%  { transform: translate(-50%,-50%) scale(1.15); opacity: 1; }
+    65%  { transform: translate(-50%,-50%) scale(1.0); opacity: 1; }
+    100% { transform: translate(-50%,-90%) scale(0.9); opacity: 0; }
+  }
+  #expandToast.show {
+    animation: expandAnim 1.0s cubic-bezier(0.22,0.61,0.36,1) forwards;
+  }
+</style>
+</head>
+<body>
+
+<div id="gameContainer">
+  <canvas id="c" width="400" height="600"></canvas>
+
+  <!-- START SCREEN -->
+  <div id="startScreen" class="screen">
+    <div class="game-title">STACKED</div>
+    <div class="game-subtitle">How high can you go?</div>
+    <svg class="tower-preview" width="180" height="120" viewBox="0 0 180 120">
+      <!-- isometric tower preview -->
+      <g transform="translate(90,110)">
+        <!-- block 1 (bottom) -->
+        <polygon points="-60,0 60,0 60,-16 -60,-16" fill="#1d9e75" opacity="0.9"/>
+        <polygon points="60,0 75,-8 75,-24 60,-16" fill="#0f6e56" opacity="0.9"/>
+        <polygon points="-60,-16 60,-16 75,-24 -45,-24" fill="#34d399" opacity="0.9"/>
+        <!-- block 2 -->
+        <polygon points="-48,-24 48,-24 48,-40 -48,-40" fill="#2dd4bf"/>
+        <polygon points="48,-24 63,-32 63,-48 48,-40" fill="#0d9488"/>
+        <polygon points="-48,-40 48,-40 63,-48 -33,-48" fill="#5eead4"/>
+        <!-- block 3 -->
+        <polygon points="-36,-48 36,-48 36,-64 -36,-64" fill="#38bdf8"/>
+        <polygon points="36,-48 51,-56 51,-72 36,-64" fill="#0284c7"/>
+        <polygon points="-36,-64 36,-64 51,-72 -21,-72" fill="#7dd3fc"/>
+        <!-- block 4 (top, moving hint) -->
+        <polygon points="-22,-80 34,-80 34,-96 -22,-96" fill="#a78bfa" opacity="0.7"/>
+        <polygon points="34,-80 49,-88 49,-104 34,-96" fill="#7c3aed" opacity="0.7"/>
+        <polygon points="-22,-96 34,-96 49,-104 -7,-104" fill="#c4b5fd" opacity="0.7"/>
+      </g>
+    </svg>
+    <button class="tap-btn" id="startBtn">TAP TO PLAY</button>
+    <div class="hint-text">CLICK · TAP · SPACEBAR</div>
+  </div>
+
+  <!-- GAMEOVER SCREEN -->
+  <div id="gameoverScreen" class="screen">
+    <div class="go-label">Your score</div>
+    <div class="go-score" id="goScoreNum">0</div>
+    <div class="go-best" id="goBestNum">BEST: 0</div>
+    <button class="tap-btn" id="restartBtn">PLAY AGAIN</button>
+  </div>
+
+  <!-- LIVE UI -->
+  <div id="liveScore">0</div>
+  <div id="bestScore">BEST: 0</div>
+  <div id="perfectToast">PERFECT!</div>
+  <div id="expandToast">+WIDTH!</div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════
+//  STACKED  —  fully self-contained canvas game
+// ════════════════════════════════════════════════════════
+
+const canvas   = document.getElementById('c');
+const ctx      = canvas.getContext('2d');
+const CW = 400, CH = 600;
+
+// UI elements
+const startScreen   = document.getElementById('startScreen');
+const startBtn      = document.getElementById('startBtn');
+const gameoverScreen= document.getElementById('gameoverScreen');
+const goScoreNum    = document.getElementById('goScoreNum');
+const goBestNum     = document.getElementById('goBestNum');
+const restartBtn    = document.getElementById('restartBtn');
+const liveScoreEl   = document.getElementById('liveScore');
+const bestScoreEl   = document.getElementById('bestScore');
+const perfectToast  = document.getElementById('perfectToast');
+const expandToast   = document.getElementById('expandToast');
+
+// ── CONSTANTS ──
+const BLOCK_HEIGHT  = 20;         // visual height of block face
+const BLOCK_DEPTH   = 10;         // iso depth
+const INIT_W        = 180;        // starting block width
+const BASE_Y        = 540;        // y of first stack block
+const PERFECT_TOL   = 4;          // pixels — counts as perfect
+const BASE_SPEED    = 3.2;
+const SPEED_INC     = 0.055;
+const MAX_SPEED     = 9.0;
+
+// Color palettes [top, front, side]
+const PALETTES = [
+  ['#6ee7b7','#34d399','#059669'],
+  ['#5eead4','#2dd4bf','#0d9488'],
+  ['#7dd3fc','#38bdf8','#0284c7'],
+  ['#a5b4fc','#818cf8','#4f46e5'],
+  ['#c4b5fd','#a78bfa','#7c3aed'],
+  ['#fbcfe8','#f9a8d4','#db2777'],
+  ['#fde68a','#fcd34d','#d97706'],
+  ['#6ee7b7','#34d399','#059669'],
+];
+
+// ── STATE ──
+let stack    = [];
+let moving   = null;
+let debris   = [];
+let score    = 0;
+let best     = 0;
+let running  = false;
+let camOffY  = 0;
+let targetCamY = 0;
+let raf      = null;
+let perfectStreak = 0;   // counts consecutive perfects
+let expandFlash   = 0;   // frames to show the expand animation
+
+// ── AUDIO ──
+let audioCtx = null;
+function getAudio() {
+  if (!audioCtx) {
+    try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
+  }
+  return audioCtx;
+}
+
+function beep(type, scoreMod) {
+  const ac = getAudio();
+  if (!ac) return;
+  const master = ac.createGain();
+  master.connect(ac.destination);
+
+  const t = ac.currentTime;
+  const sm = Math.min(scoreMod || 0, 30);
+
+  if (type === 'place') {
+    // Tonal ping that rises with score
+    const freqs = [260 + sm * 10, 390 + sm * 12];
+    freqs.forEach((f, i) => {
+      const o = ac.createOscillator();
+      const g = ac.createGain();
+      o.connect(g); g.connect(master);
+      o.type = 'sine';
+      o.frequency.setValueAtTime(f, t + i * 0.04);
+      o.frequency.exponentialRampToValueAtTime(f * 1.15, t + i * 0.04 + 0.08);
+      g.gain.setValueAtTime(0.14, t + i * 0.04);
+      g.gain.exponentialRampToValueAtTime(0.001, t + i * 0.04 + 0.22);
+      o.start(t + i * 0.04);
+      o.stop(t + i * 0.04 + 0.25);
+    });
+  } else if (type === 'perfect') {
+    // Three-note chime
+    [1, 1.25, 1.5].forEach((ratio, i) => {
+      const o = ac.createOscillator();
+      const g = ac.createGain();
+      o.connect(g); g.connect(master);
+      o.type = 'triangle';
+      const base = 440 + sm * 8;
+      o.frequency.value = Math.min(base * ratio, 1800);
+      g.gain.setValueAtTime(0, t + i * 0.07);
+      g.gain.linearRampToValueAtTime(0.18, t + i * 0.07 + 0.03);
+      g.gain.exponentialRampToValueAtTime(0.001, t + i * 0.07 + 0.32);
+      o.start(t + i * 0.07);
+      o.stop(t + i * 0.07 + 0.35);
+    });
+  } else if (type === 'expand') {
+    // Satisfying rising chord
+    [1, 1.33, 1.67, 2].forEach((ratio, i) => {
+      const o = ac.createOscillator();
+      const g = ac.createGain();
+      o.connect(g); g.connect(master);
+      o.type = 'sine';
+      o.frequency.value = Math.min((300 + sm * 6) * ratio, 2000);
+      g.gain.setValueAtTime(0, t + i * 0.05);
+      g.gain.linearRampToValueAtTime(0.15, t + i * 0.05 + 0.04);
+      g.gain.exponentialRampToValueAtTime(0.001, t + i * 0.05 + 0.4);
+      o.start(t + i * 0.05);
+      o.stop(t + i * 0.05 + 0.42);
+    });
+  } else if (type === 'miss') {
+    const o = ac.createOscillator();
+    const g = ac.createGain();
+    o.connect(g); g.connect(master);
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(200, t);
+    o.frequency.exponentialRampToValueAtTime(55, t + 0.45);
+    g.gain.setValueAtTime(0.22, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
+    o.start(t);
+    o.stop(t + 0.48);
+  }
+}
+
+// ── INIT ──
+function initGame() {
+  stack   = [];
+  debris  = [];
+  score   = 0;
+  camOffY = 0;
+  targetCamY = 0;
+  perfectStreak = 0;
+  expandFlash   = 0;
+
+  // First "ground" block
+  stack.push({
+    x: (CW - INIT_W) / 2,
+    y: BASE_Y,
+    w: INIT_W,
+    palIdx: 0
+  });
+
+  liveScoreEl.style.display = 'block';
+  bestScoreEl.style.display = 'block';
+  liveScoreEl.textContent = '0';
+  bestScoreEl.textContent = 'BEST: ' + best;
+
+  spawnMoving();
+}
+
+function spawnMoving() {
+  const top = stack[stack.length - 1];
+  const palIdx = stack.length % PALETTES.length;
+  const axis = (stack.length % 2 === 0) ? 'x' : 'z';
+  const spd = Math.min(BASE_SPEED + score * SPEED_INC, MAX_SPEED);
+
+  // Alternate: axis 'x' = block sweeps horizontally
+  //            axis 'z' = block comes from depth (visual offset)
+  // For simplicity and reliability, both sweep horizontally in screen space
+  // but we label them to alternate direction
+
+  moving = {
+    x:      axis === 'x' ? -top.w - 10 : top.x,
+    y:      top.y - BLOCK_HEIGHT,
+    w:      top.w,
+    palIdx,
+    speed:  spd,
+    dir:    1,
+    axis,
+    // for z-axis we do a different sweep pattern (depth sim via x shift)
+    zOffset: 0,
+    zDir:   1
+  };
+}
+
+// ── DROP ──
+function dropBlock() {
+  if (!moving) return;
+  const top = stack[stack.length - 1];
+
+  const movX = moving.x;
+  const movW = moving.w;
+  const topX = top.x;
+  const topW = top.w;
+
+  const overlapStart = Math.max(movX, topX);
+  const overlapEnd   = Math.min(movX + movW, topX + topW);
+  const overlap      = overlapEnd - overlapStart;
+
+  if (overlap <= 0) {
+    beep('miss', score);
+    triggerGameOver();
+    return;
+  }
+
+  const perfect = Math.abs(overlap - topW) <= PERFECT_TOL;
+  const newX = perfect ? topX : overlapStart;
+  const newW = perfect ? topW : overlap;
+
+  // Debris (cut-off piece)
+  if (!perfect) {
+    const cutX = movX < topX ? movX : movX + overlap;
+    const cutW = movW - overlap;
+    debris.push({
+      x: cutX, y: moving.y, w: cutW,
+      palIdx: moving.palIdx,
+      vy: -3.5, vx: movX < topX ? -1.5 : 1.5,
+      gravity: 0.35, alpha: 1, rot: 0, rotV: (Math.random() - 0.5) * 0.12
+    });
+    perfectStreak = 0;  // reset streak on imperfect
+    beep('place', score);
+  } else {
+    perfectStreak++;
+    beep('perfect', score);
+    showPerfect();
+  }
+
+  // Work out the final width — extend if 2 consecutive perfects
+  let finalW = newW;
+  let finalX = newX;
+  if (perfect && perfectStreak >= 2) {
+    const grow = Math.min(12, INIT_W - newW);  // grow up to 12px, never past original
+    finalW = newW + grow;
+    finalX = newX - grow / 2;
+    expandFlash = 28;  // frames to show the +width flash
+    beep('expand', score);
+    showExpand();
+  }
+
+  stack.push({
+    x: finalX,
+    y: moving.y,
+    w: finalW,
+    palIdx: moving.palIdx
+  });
+
+  score++;
+  liveScoreEl.textContent = score;
+  liveScoreEl.classList.remove('pop');
+  void liveScoreEl.offsetWidth; // reflow to re-trigger animation
+  liveScoreEl.classList.add('pop');
+  setTimeout(() => liveScoreEl.classList.remove('pop'), 150);
+
+  // Camera: always keep the new top block at ~55% down screen
+  const newTop = stack[stack.length - 1];
+  targetCamY = newTop.y - CH * 0.55;
+
+  spawnMoving();
+}
+
+function showPerfect() {
+  perfectToast.classList.remove('show');
+  void perfectToast.offsetWidth;
+  perfectToast.classList.add('show');
+}
+
+function showExpand() {
+  expandToast.classList.remove('show');
+  void expandToast.offsetWidth;
+  expandToast.classList.add('show');
+}
+
+function triggerGameOver() {
+  running = false;
+  cancelAnimationFrame(raf);
+  if (score > best) best = score;
+  liveScoreEl.style.display = 'none';
+  bestScoreEl.style.display = 'none';
+  goScoreNum.textContent = score;
+  goBestNum.textContent  = 'BEST: ' + best;
+  gameoverScreen.classList.add('visible');
+}
+
+// ── ISOMETRIC DRAWING ──
+// We draw each block as three faces: top, front-right, front-left
+// Using a simple parallel isometric projection
+
+function drawBlock(bx, by, bw, palIdx, alpha) {
+  if (alpha !== undefined) ctx.globalAlpha = alpha;
+
+  const pal   = PALETTES[palIdx % PALETTES.length];
+  const sy    = by - camOffY;           // screen Y after camera
+  const d     = BLOCK_DEPTH;            // depth extrusion
+  const sk    = d * 0.55;              // horizontal skew for iso top
+
+  // Culling: skip if completely off screen
+  if (sy + BLOCK_HEIGHT + d + 20 < 0) { ctx.globalAlpha = 1; return; }
+  if (sy - d - 10 > CH) { ctx.globalAlpha = 1; return; }
+
+  // ── Top face ──
+  ctx.fillStyle = pal[0];
+  ctx.beginPath();
+  ctx.moveTo(bx,       sy);
+  ctx.lineTo(bx + bw,  sy);
+  ctx.lineTo(bx + bw + sk, sy - d * 0.5);
+  ctx.lineTo(bx + sk,  sy - d * 0.5);
+  ctx.closePath();
+  ctx.fill();
+
+  // ── Front face (facing viewer) ──
+  ctx.fillStyle = pal[1];
+  ctx.beginPath();
+  ctx.moveTo(bx,           sy);
+  ctx.lineTo(bx + bw,      sy);
+  ctx.lineTo(bx + bw,      sy + BLOCK_HEIGHT);
+  ctx.lineTo(bx,           sy + BLOCK_HEIGHT);
+  ctx.closePath();
+  ctx.fill();
+
+  // ── Right face ──
+  ctx.fillStyle = pal[2];
+  ctx.beginPath();
+  ctx.moveTo(bx + bw,        sy);
+  ctx.lineTo(bx + bw + sk,   sy - d * 0.5);
+  ctx.lineTo(bx + bw + sk,   sy + BLOCK_HEIGHT - d * 0.5);
+  ctx.lineTo(bx + bw,        sy + BLOCK_HEIGHT);
+  ctx.closePath();
+  ctx.fill();
+
+  // ── Top-face highlight edge ──
+  ctx.strokeStyle = 'rgba(255,255,255,0.28)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(bx, sy);
+  ctx.lineTo(bx + bw, sy);
+  ctx.stroke();
+
+  ctx.globalAlpha = 1;
+}
+
+// ── DRAW SCENE ──
+function drawBG() {
+  // Gradient sky-to-deep
+  const grad = ctx.createLinearGradient(0, 0, 0, CH);
+  grad.addColorStop(0,   '#0a2535');
+  grad.addColorStop(0.5, '#0d3a4a');
+  grad.addColorStop(1,   '#061828');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, CW, CH);
+
+  // Subtle grid lines on floor
+  ctx.strokeStyle = 'rgba(99,255,200,0.04)';
+  ctx.lineWidth = 1;
+  const groundY = BASE_Y - camOffY + BLOCK_HEIGHT + 2;
+  if (groundY > 0 && groundY < CH + 80) {
+    for (let i = 0; i < 6; i++) {
+      ctx.beginPath();
+      ctx.moveTo(0, groundY + i * 22);
+      ctx.lineTo(CW, groundY + i * 22);
+      ctx.stroke();
+    }
+    for (let i = 0; i < 9; i++) {
+      ctx.beginPath();
+      ctx.moveTo(i * 50, groundY);
+      ctx.lineTo(i * 50 + 40, groundY + 80);
+      ctx.stroke();
+    }
+  }
+}
+
+function render() {
+  // Smooth camera
+  camOffY += (targetCamY - camOffY) * 0.09;
+
+  drawBG();
+
+  // ── Draw stack (bottom up) ──
+  for (let i = 0; i < stack.length; i++) {
+    const b = stack[i];
+    drawBlock(b.x, b.y, b.w, b.palIdx);
+
+    // Glow on top block — gold flash when width was extended
+    if (i === stack.length - 1) {
+      const pal = PALETTES[b.palIdx % PALETTES.length];
+      const sy = b.y - camOffY;
+      const glowColor = expandFlash > 0 ? '#fcd34d' : pal[0];
+      const glowAlpha = expandFlash > 0 ? Math.min(1, expandFlash / 12) : 0.55;
+      ctx.strokeStyle = glowColor;
+      ctx.globalAlpha = glowAlpha;
+      ctx.lineWidth = expandFlash > 0 ? 3 : 2;
+      ctx.beginPath();
+      ctx.moveTo(b.x, sy);
+      ctx.lineTo(b.x + b.w, sy);
+      ctx.stroke();
+
+      // Extra wide glow rect when expanding
+      if (expandFlash > 0) {
+        ctx.fillStyle = 'rgba(252,211,77,0.08)';
+        ctx.globalAlpha = expandFlash / 28;
+        ctx.fillRect(b.x - 4, sy - 6, b.w + 8, BLOCK_HEIGHT + 8);
+        expandFlash--;
+      }
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  // ── Draw debris ──
+  for (let i = debris.length - 1; i >= 0; i--) {
+    const d = debris[i];
+    d.y  += d.vy;
+    d.vy += d.gravity;
+    d.x  += d.vx;
+    d.alpha -= 0.025;
+    if (d.alpha <= 0 || d.y - camOffY > CH + 60) { debris.splice(i, 1); continue; }
+    drawBlock(d.x, d.y, Math.abs(d.w), d.palIdx, Math.max(0, d.alpha));
+  }
+
+  // ── Draw moving block ──
+  if (moving) {
+    // Move
+    moving.x += moving.speed * moving.dir;
+    if (moving.x > CW + 20)        moving.dir = -1;
+    if (moving.x < -moving.w - 20) moving.dir =  1;
+
+    // Draw shadow / landing guide on top of stack
+    const top = stack[stack.length - 1];
+    const topSY = top.y - camOffY;
+
+    // Faint shadow strip showing where block will land
+    ctx.fillStyle = 'rgba(255,255,255,0.07)';
+    ctx.fillRect(moving.x, topSY - 3, moving.w, 4);
+
+    // Drop guide lines
+    const overlapStart = Math.max(moving.x, top.x);
+    const overlapEnd   = Math.min(moving.x + moving.w, top.x + top.w);
+    const overlap = overlapEnd - overlapStart;
+    if (overlap > 0) {
+      ctx.fillStyle = 'rgba(99,255,200,0.12)';
+      ctx.fillRect(overlapStart, topSY - 2, overlap, 3);
+    }
+
+    // The moving block itself
+    const movY = top.y - BLOCK_HEIGHT;
+    drawBlock(moving.x, movY, moving.w, moving.palIdx);
+
+    // Direction indicator dots
+    ctx.fillStyle = 'rgba(255,255,255,0.25)';
+    const dotY = movY - camOffY - 10;
+    if (dotY > 10 && dotY < CH - 10) {
+      for (let d = 0; d < 3; d++) {
+        const dotX = moving.dir > 0
+          ? moving.x + moving.w + 6 + d * 7
+          : moving.x - 6 - d * 7;
+        ctx.globalAlpha = 0.25 - d * 0.07;
+        ctx.beginPath();
+        ctx.arc(dotX, movY - camOffY + BLOCK_HEIGHT / 2, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+  }
+}
+
+// ── GAME LOOP ──
+function loop() {
+  render();
+  raf = requestAnimationFrame(loop);
+}
+
+// ── INPUT ──
+function handleInput() {
+  if (!running) return;
+  dropBlock();
+}
+
+canvas.addEventListener('click',     handleInput);
+canvas.addEventListener('touchend',  (e) => { e.preventDefault(); handleInput(); }, { passive: false });
+document.addEventListener('keydown', (e) => {
+  if (e.code === 'Space' || e.code === 'ArrowDown' || e.code === 'Enter') {
+    e.preventDefault();
+    handleInput();
+  }
+});
+
+// ── START / RESTART ──
+function startGame() {
+  startScreen.style.display = 'none';
+  gameoverScreen.classList.remove('visible');
+  initGame();
+  running = true;
+  cancelAnimationFrame(raf);
+  loop();
+}
+
+startBtn.addEventListener('click', startGame);
+restartBtn.addEventListener('click', startGame);
+
+// Kick off idle render on start screen
+(function idleRender() {
+  ctx.clearRect(0, 0, CW, CH);
+  drawBG();
+  // Draw a few static blocks as preview
+  const blocks = [
+    { x: 100, y: 500, w: 200, palIdx: 0 },
+    { x: 110, y: 480, w: 180, palIdx: 1 },
+    { x: 122, y: 460, w: 156, palIdx: 2 },
+    { x: 130, y: 440, w: 140, palIdx: 3 },
+    { x: 140, y: 420, w: 120, palIdx: 4 },
+  ];
+  blocks.forEach(b => drawBlock(b.x, b.y, b.w, b.palIdx));
+})();
+</script>
+</body>
+</html>
